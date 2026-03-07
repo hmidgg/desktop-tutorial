@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espace Medecin </title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShCMec1FOM5xFIxnvUGmbKG7E7ARW0A9L52w&s');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+      color: white;
+    }
+
+    .navbar {
+      background-color: #003366;
+    }
+
+    .navbar-brand {
+      color: white !important;
+      transition: all 0.3s ease;
+      font-weight: bold;
+    }
+
+    .navbar-brand:hover {
+      color: #28a745 !important;
+      text-decoration: underline;
+    }
+
+    .main-content {
+      text-align: center;
+      margin-top: 150px;
+      padding: 40px;
+    }
+
+    h2 {
+      font-weight: bold;
+      text-shadow: 1px 1px 3px black;
+    }
+
+    p {
+      font-size: 18px;
+      margin-bottom: 30px;
+      text-shadow: 1px 1px 3px black;
+    }
+
+    .btn-blue-royal {
+      background-color: #003366;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 8px;
+      transition: 0.3s;
+    }
+
+    .btn-blue-royal:hover {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .btn-group-custom {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barre de navigation -->
+  <nav class="navbar navbar-expand-lg">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">Centre Médical</a>
+    </div>
+  </nav>
+
+  <!-- Contenu principal -->
+  <div class="main-content">
+    <h2>Bienvenue dans l'espace Medecin </h2>
+    <p>Veuillez choisir une option :</p>
+    <div class="btn-group-custom">
+      <a href="connexion_medecin.html " class="btn btn-blue-royal">Connexion</a>
+      <a href="creation_compte_medecin.html" class="btn btn-blue-royal">Créer un compte</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

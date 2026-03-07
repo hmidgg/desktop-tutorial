@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rendez-vous Médecin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #f8f9fa; /* fond clair sans image */
+      font-family: Arial, sans-serif;
+      color: #003366;
+      margin: 0;
+      padding: 0;
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 40px;
+      margin-bottom: 30px;
+      color: #003366;
+    }
+
+    .table {
+      background-color: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    .table th {
+      background-color: #003366;
+      color: white;
+    }
+
+    .btn-custom {
+      background-color: #003366;
+      color: white;
+      border: none;
+    }
+
+    .btn-custom:hover {
+      background-color: #007b8a;
+    }
+
+    .date-section {
+      background-color: #e6f0fa;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    @media (max-width: 768px) {
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Espace Médecin – Gestion des Rendez-vous</h2>
+
+  <div class="container">
+    <!-- Section de sélection de date -->
+    <div class="row justify-content-center date-section">
+      <div class="col-md-6">
+        <label for="dateConsultation" class="form-label">Sélectionner une date :</label>
+        <input type="date" class="form-control mb-2" id="dateConsultation" />
+        <button class="btn btn-custom w-100" onclick="filtrerParDate()">Afficher les rendez-vous</button>
+      </div>
+    </div>
+
+    <!-- Tableau des rendez-vous -->
+    <div class="table-responsive">
+      <table class="table table-bordered text-center">
+        <thead>
+          <tr>
+            <th>Nom du Patient</th>
+            <th>Date</th>
+            <th>Heure</th>
+            <th>Motif</th>
+            <th>Numéro de salle</th>
+          </tr>
+        </thead>
+        <tbody id="listeRendezVous">
+          <tr>
+            <td>Ahmed Ben Ali</td>
+            <td>2025-07-20</td>
+            <td>10:00</td>
+            <td>Consultation Générale</td>
+            <td>101</td>
+          </tr>
+          <tr>
+            <td>Salma Baccar</td>
+            <td>2025-07-20</td>
+            <td>11:30</td>
+            <td>Résultat d’analyse</td>
+            <td>102</td>
+          </tr>
+          <tr>
+            <td>Karim Zoghlami</td>
+            <td>2025-07-21</td>
+            <td>09:00</td>
+            <td>Suivi diabète</td>
+            <td>103</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function filtrerParDate() {
+      const dateInput = document.getElementById('dateConsultation').value;
+      const rows = document.querySelectorAll("#listeRendezVous tr");
+
+      rows.forEach(row => {
+        const dateCell = row.cells[1].textContent;
+        row.style.display = (dateInput === "" || dateCell === dateInput) ? "" : "none";
+      });
+    }
+  </script>
+</body>
+</html>
