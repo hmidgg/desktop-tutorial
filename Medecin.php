@@ -5,6 +5,7 @@ class Medecin extends Personne{
     public $Adresse;
     public $Specialite;
     public $ID_Spe;
+    public $password;
      public function __construct($ID_Med, $Adresse, $Specialite, $ID_Spe,
                                 $nom, $prenom, $Email, $Telephone, $password, $pdo = null) {
         $this->ID_Med     = $ID_Med;
