@@ -38,6 +38,13 @@ class Personne{
         $this->Email     = $Email;
         $this->Telephone = $Telephone;
     }
+    protected function insererPersonne(): void {
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO Personne (Nom, Prenom, Email, Telephone) VALUES (?, ?, ?, ?)"
+        );
+        $stmt->execute([$this->nom, $this->prenom, $this->Email, $this->Telephone]);
+    }
+
 
 }
 ?>
