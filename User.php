@@ -1,10 +1,12 @@
 <?php
-class User{
+require_once'Personne.php';
+class User extends Personne{
     public $login;
     public $password;
-    public function __construct($login,$password){
+    public function __construct($login,$password,$nom,$prenom,$Email,$Telephone){
         $this->login=$login;
         $this->password=$password;
+        parent::__construct($nom,$prenom,$Email,$Telephone);
     }
     public function Se_Connecter(): void {
         if (!empty($this->login) && !empty($this->password)) {
