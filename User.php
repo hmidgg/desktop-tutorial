@@ -3,18 +3,23 @@ require_once'Personne.php';
 class User extends Personne{
     public $login;
     public $password;
-    public function __construct($login,$password,$nom,$prenom,$Email,$Telephone){
+    public function __construct($login,$password,$nom,$prenom,$Email,$Telephone,$pdo){
         $this->login=$login;
         $this->password=$password;
-        parent::__construct($nom,$prenom,$Email,$Telephone);
+        parent::__construct($nom,$prenom,$Email,$Telephone,$pdo);
     }
     public function Se_Connecter(): void {
-        if (!empty($this->login) && !empty($this->password)) {
+        $stmt = $this->pdo->prepare("SELECT * FROM User WHERE login = ?");
+        $stmt->execute([$this->login]);
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($this->password, $user['password'])) {
             echo "Connexion réussie. Bienvenue, {$this->login} !\n";
         } else {
-            echo "Login ou mot de passe vide.\n";
+            echo "Login ou mot de passe incorrect.\n";
         }
     }
+
 
     // ─────────────────────────────────────────────
     // 2. CRÉER UN RENDEZ-VOUS
@@ -29,21 +34,15 @@ class User extends Personne{
             echo "Date invalide : $date_heure\n";
             return;
         }
-
-        $rdv = [
-            'patient'    => $this->login,
-            'medecin_id' => $medecin_id,
-            'salle_id'   => $salle_id,
-            'date_heure' => $date_heure,
-            'motif'      => $motif,
-            'statut'     => 'confirmé',
-        ];
-
-        echo "✅ Rendez-vous créé avec succès :\n";
-        foreach ($rdv as $cle => $valeur) {
-            echo "   $cle : $valeur\n";
-        }
+        $id_rdv = uniqid("RDV_");
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO Rendez_vous (ID_RDV, DateHeure, login, ID_Med)
+             VALUES (?, ?, ?, ?)"
+        );
+        $stmt->execute([$id_rdv, $date_heure, $this->login, $medecin_id]);
+        echo "Rendez-vous créé avec succès. ID : $id_rdv\n";
     }
+
 
     // ─────────────────────────────────────────────
     // 3. MODIFIER UN RENDEZ-VOUS
@@ -58,12 +57,13 @@ class User extends Personne{
             echo "Date invalide : $nouvelle_date\n";
             return;
         }
-
-        echo "✏️  Rendez-vous #{$rdv_id} modifié :\n";
-        echo "   Nouvelle date  : $nouvelle_date\n";
-        echo "   Nouvelle salle : $nouvelle_salle\n";
-        echo "   Nouveau motif  : $nouveau_motif\n";
+        $stmt = $this->pdo->prepare(
+            "UPDATE Rendez_vous SET DateHeure = ? WHERE ID_RDV = ? AND login = ?"
+        );
+        $stmt->execute([$nouvelle_date, $rdv_id, $this->login]);
+        echo "Rendez-vous #{$rdv_id} modifié avec succès.\n";
     }
+
 
     // ─────────────────────────────────────────────
     // 4. ANNULER UN RENDEZ-VOUS
@@ -73,8 +73,11 @@ class User extends Personne{
             echo "ID de rendez-vous invalide.\n";
             return;
         }
-
-        echo "❌ Rendez-vous #{$rdv_id} annulé avec succès.\n";
+        $stmt = $this->pdo->prepare(
+            "DELETE FROM Rendez_vous WHERE ID_RDV = ? AND login = ?"
+        );
+        $stmt->execute([$rdv_id, $this->login]);
+        echo "Rendez-vous #{$rdv_id} annulé avec succès.\n";
     }
 
     // ─────────────────────────────────────────────
@@ -85,50 +88,37 @@ class User extends Personne{
             echo "Date invalide : $date_heure\n";
             return;
         }
-
-        $salles_simulees = [
-            ['id' => 1, 'nom' => 'Salle A', 'capacite' => 10, 'type' => 'Consultation'],
-            ['id' => 2, 'nom' => 'Salle B', 'capacite' => 5,  'type' => 'Chirurgie'],
-            ['id' => 3, 'nom' => 'Salle C', 'capacite' => 8,  'type' => 'Radiologie'],
-        ];
+        $stmt = $this->pdo->prepare("SELECT * FROM Salle WHERE Est_Disponible = 1");
+        $stmt->execute();
+        $salles = $stmt->fetchAll();
 
         echo "=== Salles disponibles le $date_heure ===\n";
-        foreach ($salles_simulees as $salle) {
-            echo "  [{$salle['id']}] {$salle['nom']} | Capacité : {$salle['capacite']} | Type : {$salle['type']}\n";
+        foreach ($salles as $salle) {
+            echo "  [{$salle['ID_Salle']}] Équipement : {$salle['Equipement']}\n";
         }
     }
+
 
     // ─────────────────────────────────────────────
     // 6. CONSULTER L'HORAIRE MÉDICAL
     // ─────────────────────────────────────────────
-    public function Consulter_HoraireMedicale(int $medecin_id, string $date): void {
+    public function Consulter_HoraireMedecins(int $medecin_id, string $date): void {
         if (strtotime($date) === false) {
             echo "Date invalide : $date\n";
             return;
         }
-
-        $horaires_simules = [
-            ['heure_debut' => '08:00', 'heure_fin' => '10:00'],
-            ['heure_debut' => '14:00', 'heure_fin' => '16:00'],
-        ];
-
-        $creneaux_pris = ['08:30', '09:00'];
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM Horaire WHERE ID_Med = ? AND Est_Disponible = 1"
+        );
+        $stmt->execute([$medecin_id]);
+        $horaires = $stmt->fetchAll();
 
         echo "=== Horaires du médecin #$medecin_id — $date ===\n";
-        foreach ($horaires_simules as $h) {
-            echo "Plage : {$h['heure_debut']} → {$h['heure_fin']}\n";
-
-            $debut = new DateTime("{$date} {$h['heure_debut']}");
-            $fin   = new DateTime("{$date} {$h['heure_fin']}");
-
-            while ($debut < $fin) {
-                $creneau = $debut->format('H:i');
-                $dispo   = in_array($creneau, $creneaux_pris) ? '❌ Pris' : '✅ Libre';
-                echo "   $creneau — $dispo\n";
-                $debut->modify('+30 minutes');
-            }
+        foreach ($horaires as $h) {
+            echo "  Jour : {$h['Jour']} | Heure : {$h['Heure']}\n";
         }
     }
+
 }
 
 

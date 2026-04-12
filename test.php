@@ -3,7 +3,7 @@
 
 $host = '127.0.0.1';
 $port = '3306'; // port MySQL
-$db   = 'test';
+$db   = 'examen';
 $user = 'grouped';
 $pass = 'grouped';
 $charset = 'utf8mb4';
