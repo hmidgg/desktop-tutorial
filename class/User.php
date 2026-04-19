@@ -8,15 +8,15 @@ class User extends Personne{
         $this->password=$password;
         parent::__construct($nom,$prenom,$Email,$Telephone,$pdo);
     }
-    public function Se_Connecter(): void {
-        $stmt = $this->pdo->prepare("SELECT * FROM User WHERE login = ?");
+    public function Se_Connecter(): bool {
+        $stmt = $this->pdo->prepare("SELECT * FROM User WHERE Email = ?");
         $stmt->execute([$this->login]);
         $user = $stmt->fetch();
 
-        if ($user && password_verify($this->password, $user['password'])) {
-            echo "Connexion réussie. Bienvenue, {$this->login} !\n";
+        if ($user && $this->password === $user['password']) {
+            return true;
         } else {
-            echo "Login ou mot de passe incorrect.\n";
+            return false;
         }
     }
 

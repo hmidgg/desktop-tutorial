@@ -17,10 +17,11 @@ $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=$charset";
 
 try {
     $pdo = new PDO($dsn, $user, $pass);
+ 
     
     // Configuration des options d'erreur
     //$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    echo "Connexion réussie !";
+    // echo "Connexion réussie !";
 } catch (\PDOException $e) {
     error_log($e->getMessage());
     // Message d'erreur clair si la connexion échoue
