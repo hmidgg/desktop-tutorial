@@ -1,7 +1,7 @@
 <?php
 session_start();
 require_once "class/Personne.php";
-require_once "test.php";
+require_once "connexion_bd.php";
 require_once "class/User.php";
 $erreur = "";
 
@@ -34,7 +34,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION["telephone"] = $data["Telephone"] ?? "";
 
             // Redirection vers dashboard
-            header("Location: dashboard_user.html");
+            header("Location: dashboard_user.php");
             exit;
         } else {
             $erreur = "Login ou mot de passe incorrect.";
