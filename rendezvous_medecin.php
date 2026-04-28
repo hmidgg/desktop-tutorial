@@ -4,7 +4,7 @@ require_once 'connexion_bd.php';
 
 // Vérifier si un médecin est connecté
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'medecin') {
-    header('Location: connexion_medecin.html');
+    header('Location: connexion_medecin.php');
     exit;
 }
 

@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
             $success = true;
-            header('Location: connexion_medecin.html');
+            header('Location: connexion_medecin.php');
             exit;
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -214,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <p class="mt-3 text-center">
       Vous avez déjà un compte ? 
-      <a href="connexion_medecin.html" class="link-dark">Se connecter</a>
+      <a href="connexion_medecin.php" class="link-dark">Se connecter</a>
     </p>
   </div>
 
