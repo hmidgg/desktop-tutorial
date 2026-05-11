@@ -3,7 +3,7 @@ session_start();
 require_once 'connexion_bd.php';
 
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'patient') {
-    header('Location: rendezvous_patient.html');
+    header('Location: rendezvous_patient.php');
     exit;
 }
 
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['nom'] = $patient['Nom'] ?? '';
             $_SESSION['prenom'] = $patient['Prenom'] ?? '';
 
-            header('Location: rendezvous_patient.html');
+            header('Location: rendezvous_patient.php');
             exit;
         } else {
             $erreur = 'Email ou mot de passe incorrect.';
