@@ -7,6 +7,27 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'patient') {
     exit;
 }
 
+// Meme suivi que le dashboard : salle et statut reellement valides par l'accueil
+$pdo->exec(
+    "CREATE TABLE IF NOT EXISTS Salle (
+        ID_Salle VARCHAR(50) NOT NULL,
+        Equipement VARCHAR(255) DEFAULT NULL,
+        Est_Disponible TINYINT(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (ID_Salle)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+);
+$pdo->exec(
+    "CREATE TABLE IF NOT EXISTS Rendez_vous_suivi (
+        ID_RDV VARCHAR(50) NOT NULL,
+        statut VARCHAR(20) NOT NULL DEFAULT 'attente',
+        ID_Salle VARCHAR(50) DEFAULT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (ID_RDV),
+        CONSTRAINT fk_rdv_suivi_rdv FOREIGN KEY (ID_RDV) REFERENCES Rendez_vous (ID_RDV) ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT fk_rdv_suivi_salle FOREIGN KEY (ID_Salle) REFERENCES Salle (ID_Salle) ON DELETE SET NULL ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+);
+
 $matricule = $_SESSION['matricule'] ?? '';
 $patientNomComplet = trim(($_SESSION['prenom'] ?? '') . ' ' . ($_SESSION['nom'] ?? ''));
 
@@ -46,19 +67,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $pdo->beginTransaction();
                     try {
-                        $stmt = $pdo->query(
-                            "SELECT COALESCE(MAX(CAST(SUBSTRING(ID_RDV, 4) AS UNSIGNED)), 0) + 1 AS next_num
-                             FROM Rendez_vous
-                             WHERE ID_RDV REGEXP '^RDV[0-9]+$'
-                             FOR UPDATE"
-                        );
-                        $nextNum = (int) ($stmt->fetch()['next_num'] ?? 1);
-                        $idRdv = 'RDV' . str_pad((string) $nextNum, 6, '0', STR_PAD_LEFT);
+                        $stmt = $pdo->query('SELECT COALESCE(MAX(ID_RDV), 0) + 1 AS next_id FROM Rendez_vous FOR UPDATE');
+                        $nextId = (int) ($stmt->fetch()['next_id'] ?? 1);
 
-                        $stmt = $pdo->prepare(
-                            'INSERT INTO Rendez_vous (ID_RDV, Matricule, ID_Med, DateHeure, login) VALUES (?, ?, ?, ?, NULL)'
-                        );
-                        $stmt->execute([$idRdv, $matricule, $medecinSelectionne, $dateSql]);
+                        $stmt = $pdo->prepare('INSERT INTO Rendez_vous (ID_RDV, Matricule, ID_Med, DateHeure) VALUES (?, ?, ?, ?)');
+                        $stmt->execute([$nextId, $matricule, $medecinSelectionne, $dateSql]);
 
                         $pdo->commit();
                         $succes = 'Rendez-vous enregistré avec succès.';
@@ -68,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($pdo->inTransaction()) {
                             $pdo->rollBack();
                         }
-                        $erreur = 'Erreur SQL: ' . $e->getMessage();
+                        $erreur = 'Impossible d\'enregistrer le rendez-vous pour le moment.';
                     }
                 }
             }
@@ -77,22 +90,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $stmt = $pdo->query(
-    "SELECT m.ID_Med, p.Nom, p.Prenom, m.Specialite
+    "SELECT m.ID_Med, p.Nom, p.Prenom,
+            COALESCE(NULLIF(TRIM(m.Specialite), ''), sp.Nom) AS Specialite
      FROM Medecin m
      LEFT JOIN Personne p ON m.Email = p.Email
+     LEFT JOIN Specialite sp ON m.ID_Spe = sp.ID_Spe
      ORDER BY p.Nom ASC, p.Prenom ASC"
 );
 $medecins = $stmt->fetchAll();
 
+$stmt = $pdo->query("SELECT ID_Salle, Equipement FROM Salle WHERE Est_Disponible = 1 ORDER BY ID_Salle");
+$sallesDisponibles = $stmt->fetchAll();
+
 $stmt = $pdo->prepare(
-    "SELECT r.ID_RDV, r.DateHeure, m.Specialite,
+    "SELECT r.ID_RDV, r.DateHeure,
+            COALESCE(NULLIF(TRIM(m.Specialite), ''), sp.Nom) AS Specialite,
             p.Nom AS medecin_nom, p.Prenom AS medecin_prenom,
-            s.ID_Salle, s.Equipement
+            COALESCE(rs.statut, 'attente') AS statut_rdv,
+            s.ID_Salle, s.Equipement AS salle_equipement
      FROM Rendez_vous r
+     LEFT JOIN Rendez_vous_suivi rs ON r.ID_RDV = rs.ID_RDV
+     LEFT JOIN Salle s ON rs.ID_Salle = s.ID_Salle
      LEFT JOIN Medecin m ON r.ID_Med = m.ID_Med
+     LEFT JOIN Specialite sp ON m.ID_Spe = sp.ID_Spe
      LEFT JOIN Personne p ON m.Email = p.Email
-     LEFT JOIN Medecin_Salle ms ON m.ID_Med = ms.ID_Med
-     LEFT JOIN Salle s ON ms.ID_Salle = s.ID_Salle
      WHERE r.Matricule = ?
      ORDER BY r.DateHeure DESC"
 );
@@ -145,6 +166,11 @@ $rendezVous = $stmt->fetchAll();
       color: #003366;
       font-weight: 600;
     }
+    #specialite_live {
+      min-height: 1.5rem;
+      color: #005f73;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -179,11 +205,30 @@ $rendezVous = $stmt->fetchAll();
               <h5 class="card-title">
                 Dr. <?php echo htmlspecialchars(trim(($rdv['medecin_prenom'] ?? '') . ' ' . ($rdv['medecin_nom'] ?? ''))); ?>
               </h5>
+              <p class="card-text mb-2">
+                <span class="badge <?php echo ($rdv['statut_rdv'] ?? '') === 'valide' ? 'bg-success' : 'bg-warning text-dark'; ?>">
+                  <?php echo ($rdv['statut_rdv'] ?? '') === 'valide' ? 'Confirmé' : 'En attente de validation'; ?>
+                </span>
+              </p>
               <p class="card-text">
                 Spécialité: <?php echo htmlspecialchars($rdv['Specialite'] ?? 'Non définie'); ?><br />
                 Date: <?php echo date('d/m/Y', strtotime($rdv['DateHeure'])); ?><br />
                 Heure: <?php echo date('H:i', strtotime($rdv['DateHeure'])); ?><br />
-                Salle: <?php echo htmlspecialchars($rdv['ID_Salle'] ?? 'Non assignée'); ?>
+                <?php
+                $salleId = $rdv['ID_Salle'] ?? null;
+                $salleEq = $rdv['salle_equipement'] ?? '';
+                if ($salleId !== null && $salleId !== '') {
+                    $salleTxt = htmlspecialchars((string) $salleId);
+                    if ($salleEq !== null && $salleEq !== '') {
+                        $salleTxt .= ' — ' . htmlspecialchars((string) $salleEq);
+                    }
+                    echo 'Salle: <strong>' . $salleTxt . '</strong>';
+                } elseif (($rdv['statut_rdv'] ?? '') === 'valide') {
+                    echo 'Salle: <span class="text-muted">Aucune salle indiquée pour ce rendez-vous.</span>';
+                } else {
+                    echo 'Salle: <span class="text-muted">Affichée ici après validation et affectation par l\'accueil.</span>';
+                }
+                ?>
               </p>
             </div>
           </div>
@@ -198,11 +243,25 @@ $rendezVous = $stmt->fetchAll();
         <select id="doctor" name="id_medecin" class="form-select" required>
           <option value="" disabled <?php echo $medecinSelectionne === '' ? 'selected' : ''; ?>>-- Choisir un médecin --</option>
           <?php foreach ($medecins as $medecin): ?>
-            <option value="<?php echo htmlspecialchars((string)$medecin['ID_Med']); ?>" <?php echo (string)$medecinSelectionne === (string)$medecin['ID_Med'] ? 'selected' : ''; ?>>
-              <?php echo htmlspecialchars('Dr. ' . trim(($medecin['Prenom'] ?? '') . ' ' . ($medecin['Nom'] ?? '')) . ' - ' . ($medecin['Specialite'] ?? '')); ?>
+            <?php
+            $spec = (string) ($medecin['Specialite'] ?? 'Non définie');
+            $specData = htmlspecialchars($spec, ENT_QUOTES, 'UTF-8');
+            ?>
+            <option
+              value="<?php echo htmlspecialchars((string) $medecin['ID_Med'], ENT_QUOTES, 'UTF-8'); ?>"
+              data-specialite="<?php echo $specData; ?>"
+              <?php echo (string) $medecinSelectionne === (string) $medecin['ID_Med'] ? 'selected' : ''; ?>
+            >
+              <?php echo htmlspecialchars('Dr. ' . trim(($medecin['Prenom'] ?? '') . ' ' . ($medecin['Nom'] ?? ''))); ?>
             </option>
           <?php endforeach; ?>
         </select>
+        <p class="form-text mb-0 mt-2">Spécialité : <span id="specialite_live" aria-live="polite">—</span></p>
+      </div>
+
+      <div class="mb-3">
+        <label for="specialite_medecin" class="form-label">Spécialité (récapitulatif)</label>
+        <input type="text" id="specialite_medecin" class="form-control bg-light" readonly value="" autocomplete="off">
       </div>
 
       <div class="mb-3">
@@ -220,8 +279,39 @@ $rendezVous = $stmt->fetchAll();
 
       <button type="submit" class="btn btn-blue-royal">Valider le rendez-vous</button>
     </form>
+
+    <h2 class="mt-5">Salles disponibles</h2>
+    <ul class="list-group">
+      <?php foreach ($sallesDisponibles as $salle): ?>
+        <li class="list-group-item"><?php echo htmlspecialchars($salle['ID_Salle'] . ' - ' . $salle['Equipement']); ?></li>
+      <?php endforeach; ?>
+      <?php if (empty($sallesDisponibles)): ?>
+        <li class="list-group-item">Aucune salle disponible.</li>
+      <?php endif; ?>
+    </ul>
   </div>
 
+  <script>
+    (function () {
+      const doctorSelect = document.getElementById('doctor');
+      const specialiteInput = document.getElementById('specialite_medecin');
+      const specialiteLive = document.getElementById('specialite_live');
+
+      function updateSpecialite() {
+        const selectedOption = doctorSelect.options[doctorSelect.selectedIndex];
+        const raw = selectedOption && selectedOption.value !== ''
+          ? (selectedOption.getAttribute('data-specialite') || selectedOption.dataset.specialite || '')
+          : '';
+        const text = raw.trim() === '' ? '—' : raw;
+        specialiteInput.value = raw;
+        specialiteLive.textContent = text;
+      }
+
+      doctorSelect.addEventListener('change', updateSpecialite);
+      doctorSelect.addEventListener('input', updateSpecialite);
+      updateSpecialite();
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

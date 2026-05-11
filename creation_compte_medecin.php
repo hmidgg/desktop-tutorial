@@ -67,8 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$nom, $prenom, $email, null]);
 
             $hash = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare('SELECT Nom FROM Specialite WHERE ID_Spe = ?');
+            $stmt->execute([$id_spe]);
+            $speRow = $stmt->fetch();
+            $nomSpecialite = $speRow ? (string) $speRow['Nom'] : null;
+
             $stmt = $pdo->prepare('INSERT INTO Medecin (ID_Med, Addresse, Specialite, ID_Spe, Email, password) VALUES (?, ?, ?, ?, ?, ?)');
-            $stmt->execute([$matricule, null, null, $id_spe, $email, $hash]);
+            $stmt->execute([$matricule, null, $nomSpecialite, $id_spe, $email, $hash]);
 
             $pdo->commit();
             $success = true;

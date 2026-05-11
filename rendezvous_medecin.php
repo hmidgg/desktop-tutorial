@@ -8,19 +8,40 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'medecin') {
     exit;
 }
 
+$pdo->exec(
+    "CREATE TABLE IF NOT EXISTS Salle (
+        ID_Salle VARCHAR(50) NOT NULL,
+        Equipement VARCHAR(255) DEFAULT NULL,
+        Est_Disponible TINYINT(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (ID_Salle)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+);
+$pdo->exec(
+    "CREATE TABLE IF NOT EXISTS Rendez_vous_suivi (
+        ID_RDV VARCHAR(50) NOT NULL,
+        statut VARCHAR(20) NOT NULL DEFAULT 'attente',
+        ID_Salle VARCHAR(50) DEFAULT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (ID_RDV),
+        CONSTRAINT fk_rdvmed_suivi_rdv FOREIGN KEY (ID_RDV) REFERENCES Rendez_vous (ID_RDV) ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT fk_rdvmed_suivi_salle FOREIGN KEY (ID_Salle) REFERENCES Salle (ID_Salle) ON DELETE SET NULL ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+);
+
 $medecin_id = $_SESSION['id_medecin'] ?? '';
 $filter_date = $_GET['date'] ?? '';
 
-// Récupérer les rendez-vous du médecin
+// Salle affichee = celle affectee par l'accueil (Rendez_vous_suivi), pas Medecin_Salle
 $sql = "
     SELECT r.ID_RDV, r.DateHeure,
            p.Nom as patient_nom, p.Prenom as patient_prenom,
-           s.ID_Salle, s.Equipement
+           COALESCE(rs.statut, 'attente') AS statut_rdv,
+           s.ID_Salle AS salle_id, s.Equipement AS salle_equipement
     FROM Rendez_vous r
+    LEFT JOIN Rendez_vous_suivi rs ON r.ID_RDV = rs.ID_RDV
+    LEFT JOIN Salle s ON rs.ID_Salle = s.ID_Salle
     LEFT JOIN Patient pat ON r.Matricule = pat.Matricule
     LEFT JOIN Personne p ON pat.Email = p.Email
-    LEFT JOIN Medecin_Salle ms ON r.ID_Med = ms.ID_Med
-    LEFT JOIN Salle s ON ms.ID_Salle = s.ID_Salle
     WHERE r.ID_Med = ?
 ";
 
@@ -160,13 +181,14 @@ $medecin_info = $stmt->fetch();
             <th>Nom du Patient</th>
             <th>Date</th>
             <th>Heure</th>
+            <th>Statut</th>
             <th>Salle</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($rendez_vous)): ?>
             <tr>
-              <td colspan="4" class="text-center text-muted">Aucun rendez-vous <?php echo $filter_date ? 'pour cette date' : 'prévu'; ?></td>
+              <td colspan="5" class="text-center text-muted">Aucun rendez-vous <?php echo $filter_date ? 'pour cette date' : 'prévu'; ?></td>
             </tr>
           <?php else: ?>
             <?php foreach ($rendez_vous as $rdv): ?>
@@ -174,7 +196,26 @@ $medecin_info = $stmt->fetch();
                 <td><?php echo htmlspecialchars(($rdv['patient_prenom'] ?? 'N/A') . ' ' . ($rdv['patient_nom'] ?? 'N/A')); ?></td>
                 <td><?php echo date('d/m/Y', strtotime($rdv['DateHeure'])); ?></td>
                 <td><?php echo date('H:i', strtotime($rdv['DateHeure'])); ?></td>
-                <td><?php echo htmlspecialchars($rdv['Equipement'] ?? 'Non assignée'); ?></td>
+                <td>
+                  <span class="badge <?php echo ($rdv['statut_rdv'] ?? '') === 'valide' ? 'bg-success' : 'bg-warning text-dark'; ?>">
+                    <?php echo ($rdv['statut_rdv'] ?? '') === 'valide' ? 'Validé' : 'En attente'; ?>
+                  </span>
+                </td>
+                <td class="text-start">
+                  <?php
+                  $sid = $rdv['salle_id'] ?? null;
+                  $seq = $rdv['salle_equipement'] ?? '';
+                  if ($sid !== null && $sid !== '') {
+                      $out = htmlspecialchars((string) $sid);
+                      if ($seq !== null && $seq !== '') {
+                          $out .= ' <span class="text-muted">— ' . htmlspecialchars((string) $seq) . '</span>';
+                      }
+                      echo $out;
+                  } else {
+                      echo '<span class="text-muted">Non assignée (l\'accueil affecte la salle depuis le tableau de bord).</span>';
+                  }
+                  ?>
+                </td>
               </tr>
             <?php endforeach; ?>
           <?php endif; ?>
