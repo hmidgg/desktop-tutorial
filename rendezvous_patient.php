@@ -7,26 +7,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'patient') {
     exit;
 }
 
-// Meme suivi que le dashboard : salle et statut reellement valides par l'accueil
-$pdo->exec(
-    "CREATE TABLE IF NOT EXISTS Salle (
-        ID_Salle VARCHAR(50) NOT NULL,
-        Equipement VARCHAR(255) DEFAULT NULL,
-        Est_Disponible TINYINT(1) NOT NULL DEFAULT 1,
-        PRIMARY KEY (ID_Salle)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
-);
-$pdo->exec(
-    "CREATE TABLE IF NOT EXISTS Rendez_vous_suivi (
-        ID_RDV VARCHAR(50) NOT NULL,
-        statut VARCHAR(20) NOT NULL DEFAULT 'attente',
-        ID_Salle VARCHAR(50) DEFAULT NULL,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (ID_RDV),
-        CONSTRAINT fk_rdv_suivi_rdv FOREIGN KEY (ID_RDV) REFERENCES Rendez_vous (ID_RDV) ON DELETE CASCADE ON UPDATE CASCADE,
-        CONSTRAINT fk_rdv_suivi_salle FOREIGN KEY (ID_Salle) REFERENCES Salle (ID_Salle) ON DELETE SET NULL ON UPDATE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
-);
+// Les tables Salle et Rendez_vous_suivi sont supposées déjà exister (via backup.sql)
+
 
 $matricule = $_SESSION['matricule'] ?? '';
 $patientNomComplet = trim(($_SESSION['prenom'] ?? '') . ' ' . ($_SESSION['nom'] ?? ''));
@@ -67,8 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $pdo->beginTransaction();
                     try {
-                        $stmt = $pdo->query('SELECT COALESCE(MAX(ID_RDV), 0) + 1 AS next_id FROM Rendez_vous FOR UPDATE');
-                        $nextId = (int) ($stmt->fetch()['next_id'] ?? 1);
+                        // Génération d'ID robuste (format RDVxxxxxx)
+                        $stmt = $pdo->query("SELECT MAX(CAST(SUBSTRING(ID_RDV, 4) AS UNSIGNED)) AS max_num FROM Rendez_vous WHERE ID_RDV LIKE 'RDV%' FOR UPDATE");
+                        $maxNum = (int)($stmt->fetch()['max_num'] ?? 0);
+                        $nextId = 'RDV' . str_pad($maxNum + 1, 6, '0', STR_PAD_LEFT);
 
                         $stmt = $pdo->prepare('INSERT INTO Rendez_vous (ID_RDV, Matricule, ID_Med, DateHeure) VALUES (?, ?, ?, ?)');
                         $stmt->execute([$nextId, $matricule, $medecinSelectionne, $dateSql]);
@@ -81,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($pdo->inTransaction()) {
                             $pdo->rollBack();
                         }
+                        error_log("Erreur insertion RDV: " . $e->getMessage());
                         $erreur = 'Impossible d\'enregistrer le rendez-vous pour le moment.';
                     }
                 }
