@@ -9,15 +9,15 @@ class User extends Personne{
         parent::__construct($nom,$prenom,$Email,$Telephone,$pdo);
     }
     public function Se_Connecter(): bool {
+        if (!$this->pdo instanceof PDO) {
+            throw new \RuntimeException('Connexion à la base de données non initialisée.');
+        }
+
         $stmt = $this->pdo->prepare("SELECT * FROM User WHERE Email = ?");
         $stmt->execute([$this->login]);
         $user = $stmt->fetch();
 
-        if ($user && $this->password === $user['password']) {
-            return true;
-        } else {
-            return false;
-        }
+        return $user && $this->password === $user['password'];
     }
 
 
